@@ -114,3 +114,7 @@ Instrument Remover/
 | Download | yt-dlp |
 | Conversion | FFmpeg |
 | Processing | PyTorch (CUDA or CPU) |
+
+---
+
+Built with vibe coding using [OpenCode](https://opencode.ai) on DeepSeek V4 Flash Free.
