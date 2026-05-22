@@ -21,8 +21,8 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Instrument Remover")
-        self.geometry("700x660")
-        self.minsize(650, 580)
+        self.geometry("780x680")
+        self.minsize(680, 500)
 
         self.output_path = None
         self.removed_path = None
@@ -45,28 +45,30 @@ class App(ctk.CTk):
             pass
 
     def _build_ui(self):
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(6, weight=1)
+        self.grid_columnconfigure((0, 1), weight=1)
+        self.grid_rowconfigure(5, weight=1)
 
         title_label = ctk.CTkLabel(
             self, text="\U0001f3b5 Instrument Remover",
             font=ctk.CTkFont(size=26, weight="bold"),
         )
-        title_label.grid(row=0, column=0, pady=(25, 2), padx=20, sticky="n")
+        title_label.grid(row=0, column=0, columnspan=2, pady=(22, 2), padx=20, sticky="n")
 
         subtitle = ctk.CTkLabel(
             self, text="Remove instruments or vocals from any YouTube audio",
             font=ctk.CTkFont(size=13),
             text_color="gray",
         )
-        subtitle.grid(row=1, column=0, pady=(0, 5), padx=20, sticky="n")
+        subtitle.grid(row=1, column=0, columnspan=2, pady=(0, 4), padx=20, sticky="n")
 
         separator = ctk.CTkFrame(self, height=1, fg_color="gray20")
-        separator.grid(row=2, column=0, padx=30, pady=(0, 12), sticky="ew")
+        separator.grid(row=2, column=0, columnspan=2, padx=30, pady=(0, 10), sticky="ew")
 
         stems_frame = ctk.CTkFrame(self)
-        stems_frame.grid(row=3, column=0, padx=20, pady=(0, 8), sticky="ew")
+        stems_frame.grid(row=3, column=0, padx=(20, 10), pady=(0, 8), sticky="nsew")
         stems_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        stems_frame.grid_rowconfigure(0, weight=0)
+        stems_frame.grid_rowconfigure(3, weight=0)
 
         ctk.CTkLabel(
             stems_frame, text="\u2699 Select what to remove:",
@@ -105,19 +107,19 @@ class App(ctk.CTk):
         ).grid(row=1 + len(stem_items) // 3, column=0, columnspan=3, padx=14, pady=(8, 10), sticky="w")
 
         quality_frame = ctk.CTkFrame(self)
-        quality_frame.grid(row=4, column=0, padx=20, pady=(0, 8), sticky="ew")
+        quality_frame.grid(row=3, column=1, padx=(10, 20), pady=(0, 8), sticky="nsew")
         quality_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             quality_frame, text="\u2699 Separation Quality",
             font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
-        ).grid(row=0, column=0, padx=14, pady=(10, 0), sticky="w")
+        ).grid(row=0, column=0, padx=14, pady=(10, 6), sticky="w")
 
         self.shifts_label = ctk.CTkLabel(
             quality_frame, text="Shifts: 1",
             font=ctk.CTkFont(size=12), anchor="w",
         )
-        self.shifts_label.grid(row=1, column=0, padx=14, pady=(4, 0), sticky="w")
+        self.shifts_label.grid(row=1, column=0, padx=14, pady=(0, 2), sticky="w")
 
         self.shifts_var = ctk.IntVar(value=1)
         ctk.CTkSlider(
@@ -125,15 +127,15 @@ class App(ctk.CTk):
             number_of_steps=9, command=self._on_shift_change,
             button_corner_radius=6,
             button_length=18,
-        ).grid(row=2, column=0, padx=14, pady=(4, 0), sticky="ew")
+        ).grid(row=2, column=0, padx=14, pady=(4, 2), sticky="ew")
 
         ctk.CTkLabel(
             quality_frame, text="Higher shifts = better separation, 1\u00d7\u201310\u00d7 slower",
             font=ctk.CTkFont(size=10), text_color="gray", anchor="w",
-        ).grid(row=3, column=0, padx=14, pady=(2, 10), sticky="w")
+        ).grid(row=3, column=0, padx=14, pady=(0, 10), sticky="w")
 
         url_frame = ctk.CTkFrame(self)
-        url_frame.grid(row=5, column=0, padx=20, pady=(0, 8), sticky="ew")
+        url_frame.grid(row=4, column=0, columnspan=2, padx=20, pady=(0, 8), sticky="ew")
         url_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(url_frame, text="\U0001f517 Source & Output", anchor="w",
@@ -152,14 +154,14 @@ class App(ctk.CTk):
         self.process_btn = ctk.CTkButton(
             url_frame, text="\u25b6 Process",
             command=self._start_processing,
-            height=40,
+            height=38,
             font=ctk.CTkFont(size=14, weight="bold"),
             corner_radius=8,
         )
         self.process_btn.grid(row=3, column=0, columnspan=2, padx=14, pady=(2, 0), sticky="ew")
 
         dest_frame = ctk.CTkFrame(url_frame, fg_color="transparent")
-        dest_frame.grid(row=4, column=0, columnspan=2, padx=14, pady=(8, 10), sticky="ew")
+        dest_frame.grid(row=4, column=0, columnspan=2, padx=14, pady=(6, 10), sticky="ew")
         dest_frame.grid_columnconfigure(0, weight=1)
 
         default_dest = self.config.get("dest_dir", str(OUTPUT_DIR))
@@ -173,46 +175,45 @@ class App(ctk.CTk):
         ).grid(row=0, column=1, padx=(6, 0))
 
         progress_frame = ctk.CTkFrame(self)
-        progress_frame.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="nsew")
-        progress_frame.grid_columnconfigure(0, weight=1)
-        progress_frame.grid_rowconfigure(4, weight=1)
+        progress_frame.grid(row=5, column=0, columnspan=2, padx=20, pady=(0, 10), sticky="nsew")
+        progress_frame.grid_columnconfigure((0, 1), weight=1)
 
         self.status_icon = "\u25cb"
         self.status_label = ctk.CTkLabel(
             progress_frame, text=f"{self.status_icon} Waiting for URL...", anchor="w",
             font=ctk.CTkFont(size=12),
         )
-        self.status_label.grid(row=0, column=0, padx=14, pady=(10, 4), sticky="ew")
+        self.status_label.grid(row=0, column=0, columnspan=2, padx=14, pady=(8, 2), sticky="ew")
 
         self.progress_bar = ctk.CTkProgressBar(progress_frame, corner_radius=4)
-        self.progress_bar.grid(row=1, column=0, padx=14, pady=(0, 4), sticky="ew")
+        self.progress_bar.grid(row=1, column=0, columnspan=2, padx=14, pady=(0, 2), sticky="ew")
         self.progress_bar.set(0)
 
         self.result_label = ctk.CTkLabel(
-            progress_frame, text="", anchor="w", wraplength=620,
+            progress_frame, text="", anchor="w", wraplength=700,
             font=ctk.CTkFont(size=11),
         )
-        self.result_label.grid(row=2, column=0, padx=14, pady=(4, 0), sticky="ew")
+        self.result_label.grid(row=2, column=0, columnspan=2, padx=14, pady=(2, 0), sticky="ew")
 
         self.bt_play_btn = ctk.CTkButton(
             progress_frame, text="\u25b6 Play Backing Track",
             command=self._play_audio, state="disabled",
             corner_radius=6,
         )
-        self.bt_play_btn.grid(row=3, column=0, padx=14, pady=(6, 3), sticky="ew")
+        self.bt_play_btn.grid(row=3, column=0, padx=(14, 6), pady=(6, 10), sticky="ew")
 
         self.removed_play_btn = ctk.CTkButton(
             progress_frame, text="\u25b6 Play Removed Instrument",
             command=self._play_removed_audio, state="disabled",
             corner_radius=6,
         )
-        self.removed_play_btn.grid(row=4, column=0, padx=14, pady=(3, 10), sticky="ew")
+        self.removed_play_btn.grid(row=3, column=1, padx=(6, 14), pady=(6, 10), sticky="ew")
 
         footer = ctk.CTkLabel(
             self, text="Powered by Demucs \u00b7 PyTorch \u00b7 NVIDIA RTX 3060",
             font=ctk.CTkFont(size=10), text_color="gray",
         )
-        footer.grid(row=7, column=0, pady=(0, 12), sticky="s")
+        footer.grid(row=6, column=0, columnspan=2, pady=(0, 12), sticky="s")
 
     def _update_progress(self, text, value):
         prefix = "\u25b6" if 0 < value < 1.0 else "\u2713" if value >= 1.0 else "\u25cb"
