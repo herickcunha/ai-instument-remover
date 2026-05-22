@@ -8,3 +8,6 @@ pillow
 numpy
 soundfile
 librosa
+mutagen
+pytest
+win10toast

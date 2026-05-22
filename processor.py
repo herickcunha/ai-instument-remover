@@ -10,7 +10,9 @@ import torch
 import numpy as np
 import soundfile as sf
 import librosa
-
+from mutagen.id3 import ID3
+from mutagen.flac import FLAC
+from mutagen.mp3 import MP3
 
 FFMPEG_PATH = shutil.which("ffmpeg") or "ffmpeg"
 
@@ -25,6 +27,49 @@ def sanitize_filename(name: str) -> str:
     return name or "audio"
 
 
+def sanitize_folder_name(name: str) -> str:
+    name = re.sub(r'[<>:"/\\|?*]', "_", name)
+    name = name.strip().rstrip(". ")
+    return name or "Unknown"
+
+
+def read_metadata(filepath: str) -> tuple[str, str]:
+    ext = Path(filepath).suffix.lower()
+    artist = album = ""
+
+    if ext == ".mp3":
+        try:
+            tags = ID3(filepath)
+            frame = tags.get("TPE1")
+            if frame:
+                artist = str(frame.text[0]).strip()
+            frame = tags.get("TALB")
+            if frame:
+                album = str(frame.text[0]).strip()
+        except Exception:
+            try:
+                audio = MP3(filepath)
+                artist = str(audio.get("TPE1", "")).strip()
+                album = str(audio.get("TALB", "")).strip()
+            except Exception:
+                pass
+    elif ext == ".flac":
+        try:
+            audio = FLAC(filepath)
+            artist_list = audio.get("artist")
+            if artist_list:
+                artist = str(artist_list[0]).strip()
+            album_list = audio.get("album")
+            if album_list:
+                album = str(album_list[0]).strip()
+        except Exception:
+            pass
+
+    artist = artist or "Unknown Artist"
+    album = album or "Unknown Album"
+    return artist, album
+
+
 def download_audio(url: str, output_dir: Path, progress_callback=None) -> str:
     if progress_callback:
         progress_callback("Downloading YouTube audio...", 0.05)
@@ -37,7 +82,11 @@ def download_audio(url: str, output_dir: Path, progress_callback=None) -> str:
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
                 "preferredquality": "320",
-            }
+            },
+            {
+                "key": "FFmpegMetadata",
+                "add_metadata": True,
+            },
         ],
         "quiet": True,
         "no_warnings": True,
@@ -243,7 +292,10 @@ def cleanup_temp(output_dir: Path):
     shutil.rmtree(output_dir, ignore_errors=True)
 
 
-def process_url(url: str, stems_to_remove: list[str] | None = None, export_removed: bool = True, shifts: int = 1, progress_callback=None) -> tuple[str, str | None]:
+def process_url(url: str, stems_to_remove: list[str] | None = None,
+                export_removed: bool = True, shifts: int = 1,
+                detect_bpm: bool = False, cancel_event=None,
+                progress_callback=None) -> tuple[str, str | None, str, str]:
     if not url or not url.strip():
         raise ValueError("Invalid URL")
 
@@ -259,28 +311,111 @@ def process_url(url: str, stems_to_remove: list[str] | None = None, export_remov
     work_dir = Path(tempfile.mkdtemp(dir=str(TEMP_DIR)))
     TEMP_DIR.mkdir(exist_ok=True)
 
-    title, mp3_path = download_audio(url, work_dir, progress_callback)
+    try:
+        title, mp3_path = download_audio(url, work_dir, progress_callback)
 
-    wav_path = convert_to_wav(mp3_path, work_dir, progress_callback)
+        artist, album = read_metadata(mp3_path)
 
-    bpm = detect_bpm(wav_path, progress_callback)
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
 
-    stems_dir, stem_names, sample_rate = separate_sources(
-        wav_path, work_dir, device, shifts, progress_callback
-    )
+        wav_path = convert_to_wav(mp3_path, work_dir, progress_callback)
 
-    output_path = mix_without_stems(
-        stems_dir, stem_names, sample_rate, title, stems_to_remove, bpm, progress_callback
-    )
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
 
-    removed_path = None
-    if export_removed:
-        removed_path = mix_removed_stems(
+        bpm = None
+        if detect_bpm:
+            bpm = detect_bpm(wav_path, progress_callback)
+
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
+
+        stems_dir, stem_names, sample_rate = separate_sources(
+            wav_path, work_dir, device, shifts, progress_callback
+        )
+
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
+
+        output_path = mix_without_stems(
             stems_dir, stem_names, sample_rate, title, stems_to_remove, bpm, progress_callback
         )
 
-    if progress_callback:
-        progress_callback("Done!", 1.0)
+        removed_path = None
+        if export_removed:
+            removed_path = mix_removed_stems(
+                stems_dir, stem_names, sample_rate, title, stems_to_remove, bpm, progress_callback
+            )
 
-    cleanup_temp(work_dir)
-    return output_path, removed_path
+        if progress_callback:
+            progress_callback("Done!", 1.0)
+
+        return output_path, removed_path, artist, album
+    finally:
+        cleanup_temp(work_dir)
+
+
+def process_local_file(file_path: str, stems_to_remove: list[str] | None = None,
+                       export_removed: bool = True, shifts: int = 1,
+                       detect_bpm: bool = False, cancel_event=None,
+                       progress_callback=None) -> tuple[str, str | None, str, str]:
+    if not file_path or not os.path.isfile(file_path):
+        raise ValueError("Invalid file path")
+
+    if not stems_to_remove:
+        stems_to_remove = ["guitar"]
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if progress_callback:
+        progress_callback(f"Starting processing (device: {device.upper()})...", 0.0)
+
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    work_dir = Path(tempfile.mkdtemp(dir=str(TEMP_DIR)))
+    TEMP_DIR.mkdir(exist_ok=True)
+
+    try:
+        title = Path(file_path).stem
+
+        artist, album = read_metadata(file_path)
+
+        ext = Path(file_path).suffix.lower()
+        if ext == ".wav":
+            wav_path = file_path
+        else:
+            wav_path = convert_to_wav(file_path, work_dir, progress_callback)
+
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
+
+        bpm = None
+        if detect_bpm:
+            bpm = detect_bpm(wav_path, progress_callback)
+
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
+
+        stems_dir, stem_names, sample_rate = separate_sources(
+            wav_path, work_dir, device, shifts, progress_callback
+        )
+
+        if cancel_event and cancel_event.is_set():
+            raise RuntimeError("Cancelled")
+
+        output_path = mix_without_stems(
+            stems_dir, stem_names, sample_rate, title, stems_to_remove, bpm, progress_callback
+        )
+
+        removed_path = None
+        if export_removed:
+            removed_path = mix_removed_stems(
+                stems_dir, stem_names, sample_rate, title, stems_to_remove, bpm, progress_callback
+            )
+
+        if progress_callback:
+            progress_callback("Done!", 1.0)
+
+        return output_path, removed_path, artist, album
+    finally:
+        cleanup_temp(work_dir)
