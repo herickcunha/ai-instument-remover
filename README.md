@@ -71,7 +71,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Or double-click the **`Iniciar.bat`** file.
+Or double-click the **`Open.bat`** file.
 
 ## How to use
 
@@ -98,7 +98,7 @@ Instrument Remover/
 ├── main.py           # GUI (CustomTkinter)
 ├── processor.py      # Audio processing logic
 ├── requirements.txt  # Python dependencies
-├── Iniciar.bat       # Windows launcher
+├── Open.bat          # Windows launcher
 ├── README.md         # This file
 ├── output/           # Processed audio files
 └── temp/             # Temporary working directories
