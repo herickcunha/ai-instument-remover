@@ -1,0 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch
+yt-dlp
+demucs
+customtkinter
+ffmpeg-python
+pillow
+numpy
+soundfile
+librosa
