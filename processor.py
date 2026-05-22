@@ -282,4 +282,5 @@ def process_url(url: str, stems_to_remove: list[str] | None = None, export_remov
     if progress_callback:
         progress_callback("Done!", 1.0)
 
+    cleanup_temp(work_dir)
     return output_path, removed_path
